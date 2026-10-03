@@ -36,6 +36,23 @@ class ExportTests(unittest.TestCase):
                             lambda *_: b'<html>Error</html>')
             self.assertFalse((root/'site/feed.json').exists())
 
+    def test_platform_subscriptions_follow_feed_values_dynamically(self):
+        def entry(identity, platform):
+            return {'id': identity, 'title': 't', 'summary': 's', 'content': '',
+                    'source': 's', 'platform': platform, 'published_at': '2026-10-03T00:00:00Z'}
+        feed = {'schema_version': 2, 'generated_at': '2026-10-03T00:00:00Z', 'items': [
+            entry('gh:1', 'github'), entry('ma:1', 'Mastodon'), entry('bo:1', '博客'),
+            entry('no:1', None), entry('blank:1', '  ')]}
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            subscriptions = export_site(feed, root/'site', root/'cache',
+                                        'https://user.github.io/repo', 'https://origin.test/media')
+            self.assertEqual({s['name'] for s in subscriptions}, {'全部', 'github', 'Mastodon', '博客', 'other'})
+            self.assertTrue((root/'site/feeds/github.json').exists())
+            self.assertTrue((root/'site/feeds/Mastodon.json').exists())
+            self.assertTrue((root/'site/feeds/%E5%8D%9A%E5%AE%A2.json').exists())
+            self.assertTrue((root/'site/feeds/other.json').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

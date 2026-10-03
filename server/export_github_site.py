@@ -91,13 +91,19 @@ def export_site(feed, output, cache, public_base, media_base, download=fetch):
                 raise ValueError('unsafe RSS source id')
             key, name = 'rss-' + source_id, item['source']
         else:
-            key = item.get('platform', 'other')
-            name = {'github': 'GitHub', 'pixiv': 'P站', 'twitter': 'X·推特', 'other': '其他'}[key]
+            # Platform names are taken verbatim from the feed (v2 allows free-form values);
+            # quote() keeps them safe as a single file path segment.
+            platform = item.get('platform')
+            key = platform.strip() if isinstance(platform, str) and platform.strip() else 'other'
+            if len(key) > 64:
+                raise ValueError('platform name exceeds 64 characters')
+            name = key
         groups.setdefault(key, {'name': name, 'items': []})['items'].append(item)
     subscriptions = [{'name': '全部', 'url': public_base.rstrip('/') + '/feed.json'}]
     for key, group in sorted(groups.items()):
-        publish({**copied, 'items': group['items']}, output / 'feeds' / (key + '.json'))
-        subscriptions.append({'name': group['name'], 'url': public_base.rstrip('/') + '/feeds/' + key + '.json'})
+        filename = urllib.parse.quote(key, safe='') + '.json'
+        publish({**copied, 'items': group['items']}, output / 'feeds' / filename)
+        subscriptions.append({'name': group['name'], 'url': public_base.rstrip('/') + '/feeds/' + filename})
     (output / 'subscriptions.json').write_text(json.dumps(subscriptions, ensure_ascii=False, indent=2), encoding='utf-8')
     (output / '.nojekyll').touch()
     return subscriptions

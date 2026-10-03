@@ -1,4 +1,4 @@
-"""Validate Hermes output and atomically publish a static feed; stdlib only."""
+"""Validate feed JSON (schema 1 or 2) and atomically publish a static feed; stdlib only."""
 import argparse
 import json
 import os
@@ -19,8 +19,12 @@ def timestamp(value):
 
 
 def validate(feed):
-    if not isinstance(feed, dict) or type(feed.get("schema_version")) is not int or feed["schema_version"] != 1:
-        raise ValueError("schema_version must be 1")
+    if not isinstance(feed, dict) or type(feed.get("schema_version")) is not int or feed["schema_version"] not in (1, 2):
+        raise ValueError("schema_version must be 1 or 2")
+    if feed["schema_version"] == 2:
+        for key in ("title", "description"):
+            if feed.get(key) is not None and not isinstance(feed[key], str):
+                raise ValueError(f"{key} must be a string")
     timestamp(feed.get("generated_at"))
     items = feed.get("items")
     if not isinstance(items, list) or len(items) > 500:
@@ -44,8 +48,11 @@ def validate(feed):
             url = urlparse(item["url"])
             if url.scheme not in ("https", "http") or not url.hostname or url.username or url.password:
                 raise ValueError("url must be an HTTP(S) URL without credentials")
-        if "platform" in item and item["platform"] not in ("github", "pixiv", "twitter", "other"):
-            raise ValueError("platform must be github/pixiv/twitter/other")
+        if feed["schema_version"] == 1:
+            if "platform" in item and item["platform"] not in ("github", "pixiv", "twitter", "other"):
+                raise ValueError("platform must be github/pixiv/twitter/other")
+        elif item.get("platform") is not None and not isinstance(item["platform"], str):
+            raise ValueError("platform must be a string")
         tags = item.get("tags", [])
         if not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags):
             raise ValueError("tags must be a string list")

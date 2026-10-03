@@ -14,6 +14,14 @@ def example():
     ]}
 
 
+def v2_example():
+    feed = example()
+    feed["schema_version"] = 2
+    feed["title"] = "我的科技订阅"
+    feed["description"] = "开源项目与科技动态"
+    return feed
+
+
 class PublishTests(unittest.TestCase):
     def test_publishes_unicode_content(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -63,6 +71,26 @@ class PublishTests(unittest.TestCase):
             feed = example()
             feed["items"][0]["platform"] = platform
             self.assertEqual(validate(feed), feed)
+
+    def test_accepts_v2_with_free_platform_and_feed_metadata(self):
+        feed = v2_example()
+        feed["items"][0]["platform"] = "Mastodon"
+        self.assertEqual(validate(feed), feed)
+
+    def test_v2_allows_missing_or_null_platform(self):
+        null_platform = v2_example()
+        null_platform["items"][0]["platform"] = None
+        self.assertEqual(validate(null_platform), null_platform)
+        self.assertEqual(validate(v2_example()), v2_example())
+
+    def test_v2_rejects_non_string_platform_and_metadata(self):
+        bad_platform = v2_example()
+        bad_platform["items"][0]["platform"] = 3
+        bad_title = v2_example()
+        bad_title["title"] = ["not", "a", "string"]
+        for feed in (bad_platform, bad_title):
+            with self.subTest(feed=feed), self.assertRaises(ValueError):
+                validate(feed)
 
 
 if __name__ == "__main__":
