@@ -75,7 +75,7 @@ def export_site(feed, output, cache, public_base, media_base, download=fetch):
     for path in cache.glob('*.webp'):
         if path.is_symlink() or not re.fullmatch(r'[a-f0-9]{16}\.webp', path.name):
             raise ValueError('unsafe image cache entry')
-        if path.stat().st_mtime < time.time() - 7 * 86400:
+        if path.stat().st_mtime < time.time() - 3 * 86400:
             path.unlink()
             continue
         total += path.stat().st_size
